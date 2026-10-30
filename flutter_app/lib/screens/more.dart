@@ -75,9 +75,11 @@ class _MoreScreenState extends State<MoreScreen> {
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
-    final name = (user?['account'] as Map?)?['name'] as String? ??
-        (user?['account'] as Map?)?['username'] as String? ??
-        '';
+    final account = (user?['account'] as Map?) ?? {};
+    final name = [
+      account['firstname'],
+      account['lastname'],
+    ].where((x) => x != null && x != '').join(' ');
     return Scaffold(
       body: RefreshIndicator(
         onRefresh: load,

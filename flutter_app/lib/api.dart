@@ -61,7 +61,7 @@ Future<dynamic> _req(String method, String path, {dynamic body}) async {
 
 Future<void> login(String url, String user, String pass) async {
   final res = await _req('POST', '/session',
-      body: {'wilma_url': url, 'username': user, 'password': pass});
+      body: {'url': url, 'username': user, 'password': pass});
   await _setToken(res['token']);
 }
 

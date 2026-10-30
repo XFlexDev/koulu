@@ -46,150 +46,68 @@ async function doLogout() {
 
 <template>
   <div>
-    <div class="more-head">
-      <div class="big-title">{{ me?.account?.firstname || "Lisää" }}</div>
-      <div class="subtle" style="font-size: 13px; margin-top: 2px">
-        {{ me?.account ? `${me.account.firstname} ${me.account.lastname}` : "" }}
-      </div>
+    <div class="mt-4 mb-5">
+      <div class="text-h5 font-weight-bold">{{ me?.account ? `${me.account.firstname} ${me.account.lastname}` : "Lisää" }}</div>
+      <div v-if="me?.school" class="text-caption text-medium-emphasis">{{ me.school }}</div>
     </div>
 
-    <div class="sec-label">Kokeet</div>
-    <div v-if="!exams" class="subtle sec-pad">Ladataan…</div>
-    <div v-else-if="exams.length === 0" class="subtle sec-pad">Ei kokeita.</div>
-    <div v-else class="ilist">
-      <div v-for="(e, i) in exams" :key="i" class="irow">
-        <div class="irow-date mono-time">{{ e.date }}<span v-if="e.time"> · {{ e.time }}</span></div>
-        <div class="irow-main">
-          <div class="irow-title">{{ e.name }}</div>
-          <div class="irow-sub subtle">
-            {{ e.course || e.course_code }}<template v-if="e.teacher"> · {{ e.teacher }}</template>
-          </div>
-          <div v-if="e.info" class="irow-info subtle">{{ e.info }}</div>
-        </div>
-      </div>
-    </div>
+    <v-list-subheader class="px-0 text-uppercase">Kokeet</v-list-subheader>
+    <v-progress-linear v-if="!exams" indeterminate color="primary" class="mb-2" />
+    <v-card v-else-if="exams.length === 0" variant="tonal" class="mb-2">
+      <v-card-text class="text-medium-emphasis py-4">Ei kokeita.</v-card-text>
+    </v-card>
+    <v-list v-else bg-color="transparent" lines="three" class="pa-0 mb-2">
+      <v-list-item v-for="(e, i) in exams" :key="i" class="px-0">
+        <v-list-item-title class="font-weight-medium">{{ e.name }}</v-list-item-title>
+        <v-list-item-subtitle>
+          {{ e.date }}<template v-if="e.time"> · {{ e.time }}</template>
+          <template v-if="e.course || e.course_code"> · {{ e.course || e.course_code }}</template>
+          <template v-if="e.teacher"> · {{ e.teacher }}</template>
+        </v-list-item-subtitle>
+        <v-list-item-subtitle v-if="e.info" style="-webkit-line-clamp: unset">{{ e.info }}</v-list-item-subtitle>
+      </v-list-item>
+    </v-list>
 
-    <div class="sec-label">Arviointikeskustelut</div>
-    <div v-if="!assessments" class="subtle sec-pad">Ladataan…</div>
-    <div v-else-if="assessments.length === 0" class="subtle sec-pad">Ei arviointikeskusteluja.</div>
-    <div v-else class="ilist">
-      <div v-for="(a, i) in assessments" :key="i" class="irow">
-        <div class="irow-main">
-          <div class="irow-title mono-time">{{ a.start }} – {{ a.end }}</div>
-        </div>
-      </div>
-    </div>
+    <v-list-subheader class="px-0 text-uppercase">Arviointikeskustelut</v-list-subheader>
+    <v-progress-linear v-if="!assessments" indeterminate color="primary" class="mb-2" />
+    <v-card v-else-if="assessments.length === 0" variant="tonal" class="mb-2">
+      <v-card-text class="text-medium-emphasis py-4">Ei arviointikeskusteluja.</v-card-text>
+    </v-card>
+    <v-list v-else bg-color="transparent" class="pa-0 mb-2">
+      <v-list-item v-for="(a, i) in assessments" :key="i" class="px-0">
+        <v-list-item-title>{{ a.start }} – {{ a.end }}</v-list-item-title>
+      </v-list-item>
+    </v-list>
 
-    <div class="sec-label">Poissaolot</div>
-    <div v-if="!observations" class="subtle sec-pad">Ladataan…</div>
-    <div v-else-if="observations.length === 0" class="subtle sec-pad">Ei selvittämättömiä poissaoloja.</div>
-    <div v-else class="ilist">
-      <div v-for="(o, i) in observations" :key="i" class="irow">
-        <div class="irow-main">
-          <div class="irow-title">{{ o.timestamp }} — {{ o.type }}</div>
-          <div v-if="o.description" class="irow-sub subtle">{{ o.description }}</div>
-        </div>
-      </div>
-    </div>
+    <v-list-subheader class="px-0 text-uppercase">Poissaolot</v-list-subheader>
+    <v-progress-linear v-if="!observations" indeterminate color="primary" class="mb-2" />
+    <v-card v-else-if="observations.length === 0" variant="tonal" class="mb-2">
+      <v-card-text class="text-medium-emphasis py-4">Ei selvittämättömiä poissaoloja.</v-card-text>
+    </v-card>
+    <v-list v-else bg-color="transparent" lines="two" class="pa-0 mb-2">
+      <v-list-item v-for="(o, i) in observations" :key="i" class="px-0">
+        <v-list-item-title>{{ o.timestamp }} — {{ o.type }}</v-list-item-title>
+        <v-list-item-subtitle v-if="o.description">{{ o.description }}</v-list-item-subtitle>
+      </v-list-item>
+    </v-list>
 
-    <div class="sec-label">Tiedotteet</div>
-    <div v-if="!news" class="subtle sec-pad">Ladataan…</div>
-    <div v-else-if="news.length === 0" class="subtle sec-pad">Ei tiedotteita.</div>
-    <div v-else class="ilist">
-      <div v-for="(x, i) in news" :key="i" class="irow">
-        <div class="irow-main">
-          <div class="irow-title">
-            {{ x.title }}
-            <span v-if="x.important" class="tag">Tärkeä</span>
-            <span v-if="x.sticky" class="tag">Pysyvä</span>
-          </div>
-          <div class="irow-sub subtle">{{ x.date }}<template v-if="x.author"> · {{ x.author }}</template></div>
-          <div v-if="x.description" class="irow-info subtle">{{ x.description }}</div>
-        </div>
-      </div>
-    </div>
+    <v-list-subheader class="px-0 text-uppercase">Tiedotteet</v-list-subheader>
+    <v-progress-linear v-if="!news" indeterminate color="primary" class="mb-2" />
+    <v-card v-else-if="news.length === 0" variant="tonal" class="mb-2">
+      <v-card-text class="text-medium-emphasis py-4">Ei tiedotteita.</v-card-text>
+    </v-card>
+    <v-list v-else bg-color="transparent" lines="three" class="pa-0 mb-2">
+      <v-list-item v-for="(x, i) in news" :key="i" class="px-0">
+        <v-list-item-title class="font-weight-medium">
+          {{ x.title }}
+          <v-chip v-if="x.important" size="x-small" color="primary" class="ml-2">Tärkeä</v-chip>
+          <v-chip v-if="x.sticky" size="x-small" variant="tonal" class="ml-1">Pysyvä</v-chip>
+        </v-list-item-title>
+        <v-list-item-subtitle>{{ x.date }}<template v-if="x.author"> · {{ x.author }}</template></v-list-item-subtitle>
+        <v-list-item-subtitle v-if="x.description" style="-webkit-line-clamp: unset">{{ x.description }}</v-list-item-subtitle>
+      </v-list-item>
+    </v-list>
 
-    <button class="logout" @click="doLogout">Kirjaudu ulos</button>
+    <v-btn color="error" variant="tonal" block size="large" class="mt-8" @click="doLogout">Kirjaudu ulos</v-btn>
   </div>
 </template>
-
-<style scoped>
-.more-head {
-  margin: 14px 0 26px;
-}
-.sec-label {
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: #8e8e93;
-  margin: 26px 0 8px;
-}
-.sec-pad {
-  padding: 8px 2px 4px;
-  font-size: 14px;
-}
-.ilist {
-  display: flex;
-  flex-direction: column;
-}
-.irow {
-  display: flex;
-  gap: 12px;
-  padding: 12px 2px;
-  border-bottom: 1px solid #141416;
-}
-.irow:last-child {
-  border-bottom: 0;
-}
-.irow-date {
-  font-size: 13px;
-  color: #b8b8bf;
-  width: 108px;
-  flex-shrink: 0;
-  padding-top: 2px;
-}
-.irow-main {
-  flex: 1;
-  min-width: 0;
-}
-.irow-title {
-  font-size: 15px;
-  font-weight: 600;
-}
-.irow-sub {
-  font-size: 12.5px;
-  margin-top: 2px;
-}
-.irow-info {
-  font-size: 12.5px;
-  margin-top: 4px;
-  line-height: 1.45;
-}
-.tag {
-  display: inline-block;
-  font-size: 10.5px;
-  font-weight: 700;
-  background: #26262b;
-  color: #d5d5da;
-  border-radius: 6px;
-  padding: 2px 6px;
-  margin-left: 6px;
-  vertical-align: 2px;
-}
-.logout {
-  margin-top: 36px;
-  width: 100%;
-  height: 48px;
-  border: 0;
-  border-radius: 14px;
-  background: #161618;
-  color: #ff6961;
-  font-size: 14px;
-  font-weight: 650;
-  cursor: pointer;
-}
-.logout:active {
-  transform: scale(0.99);
-}
-</style>

@@ -31,110 +31,53 @@ async function sendReply() {
 </script>
 
 <template>
-  <div class="sheet">
-    <div v-if="!msg" class="subtle">Ladataan…</div>
-    <div v-else-if="msg.error" class="err">{{ msg.error }}</div>
+  <v-card rounded="t-xl" class="pb-6" style="max-height: 86vh; overflow-y: auto">
+    <v-card-item v-if="!msg">
+      <v-card-text class="text-medium-emphasis">Ladataan…</v-card-text>
+    </v-card-item>
+    <v-card-item v-else-if="msg.error">
+      <v-alert type="error" variant="tonal">{{ msg.error }}</v-alert>
+    </v-card-item>
     <template v-else>
-      <div class="sheet-subj">{{ msg.subject }}</div>
-      <div class="sheet-meta">{{ msg.from }} · {{ msg.timestamp }}</div>
-      <div class="sheet-body" v-html="msg.html || ''"></div>
+      <v-card-item>
+        <v-card-title style="white-space: normal">{{ msg.subject }}</v-card-title>
+        <v-card-subtitle>{{ msg.from }} · {{ msg.timestamp }}</v-card-subtitle>
+      </v-card-item>
+      <v-card-text class="msg-body" v-html="msg.html || ''"></v-card-text>
 
-      <div v-for="(r, i) in msg.replies || []" :key="i" class="reply-box">
-        <div class="sheet-meta">{{ r.from }} · {{ r.timestamp }}</div>
-        <div class="sheet-body" v-html="r.html || ''"></div>
-      </div>
+      <v-card v-for="(r, i) in msg.replies || []" :key="i" variant="tonal" class="mx-4 mb-3">
+        <v-card-subtitle class="pt-3">{{ r.from }} · {{ r.timestamp }}</v-card-subtitle>
+        <v-card-text class="msg-body pt-1" v-html="r.html || ''"></v-card-text>
+      </v-card>
 
-      <div v-if="msg.allow_reply && !sent" class="reply-row">
-        <input v-model="reply" class="field" placeholder="Vastaa…" @keydown.enter="sendReply" />
-        <button class="send" :disabled="sending || !reply.trim()" @click="sendReply">
-          <v-icon size="18">mdi-arrow-up</v-icon>
-        </button>
-      </div>
-      <div v-if="sent" class="sent">Vastaus lähetetty.</div>
+      <v-card-item v-if="msg.allow_reply && !sent">
+        <div class="d-flex ga-2">
+          <v-text-field
+            v-model="reply"
+            placeholder="Vastaa…"
+            density="compact"
+            class="flex-grow-1"
+            @keydown.enter="sendReply"
+          />
+          <v-btn icon="mdi-arrow-up" color="primary" :loading="sending" :disabled="!reply.trim()" @click="sendReply" />
+        </div>
+      </v-card-item>
+      <v-card-item v-if="sent">
+        <v-alert type="success" variant="tonal" density="compact">Vastaus lähetetty.</v-alert>
+      </v-card-item>
     </template>
-  </div>
+  </v-card>
 </template>
 
 <style scoped>
-.sheet {
-  background: #0c0c0d;
-  border-radius: 24px 24px 0 0;
-  padding: 26px 22px 34px;
-  max-height: 86vh;
-  overflow-y: auto;
-}
-.sheet-subj {
-  font-size: 21px;
-  font-weight: 750;
-  letter-spacing: -0.01em;
-  line-height: 1.2;
-}
-.sheet-meta {
-  color: #8e8e93;
-  font-size: 13px;
-  margin: 6px 0 18px;
-}
-.sheet-body {
+.msg-body {
   font-size: 15px;
   line-height: 1.55;
-  color: #e2e2e6;
 }
-.sheet-body :deep(p) {
+.msg-body :deep(p) {
   margin: 0 0 10px;
 }
-.sheet-body :deep(a) {
-  color: #7cb4ff;
-}
-.reply-box {
-  margin-top: 16px;
-  padding: 14px;
-  border-radius: 14px;
-  background: #141416;
-}
-.reply-row {
-  display: flex;
-  gap: 8px;
-  margin-top: 22px;
-}
-.field {
-  flex: 1;
-  height: 46px;
-  padding: 0 14px;
-  border: 0;
-  border-radius: 12px;
-  background: #141416;
-  color: #f2f2f7;
-  font-size: 15px;
-  outline: none;
-}
-.field::placeholder {
-  color: #63636b;
-}
-.send {
-  width: 46px;
-  height: 46px;
-  border: 0;
-  border-radius: 12px;
-  background: #fff;
-  color: #000;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-}
-.send:disabled {
-  opacity: 0.35;
-}
-.sent {
-  color: #4ade80;
-  font-size: 13.5px;
-  margin-top: 18px;
-}
-.err {
-  color: #ff6961;
-  font-size: 13.5px;
-}
-.subtle {
-  color: #8e8e93;
+.msg-body :deep(a) {
+  color: rgb(var(--v-theme-primary));
 }
 </style>

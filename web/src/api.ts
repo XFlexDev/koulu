@@ -43,7 +43,7 @@ export const api = {
   recipients: () => req("/recipients"),
   exams: () => req("/exams"),
   news: () => req("/news"),
-  groups: () => req("/groups"),
+  assessments: () => req("/assessments"),
   attendance: () => req("/attendance"),
   excuse: (ids: number[], type: number, text = "") =>
     req("/attendance/excuse", { method: "POST", body: JSON.stringify({ ids, type, text }) }),
@@ -59,6 +59,7 @@ export interface Lesson {
   class?: string;
   teachers: string[];
   info?: string;
+  break?: boolean;
 }
 export interface Day {
   date: string;

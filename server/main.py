@@ -165,10 +165,10 @@ async def news(c: WilmaClient = Depends(client_for)):
         raise HTTPException(502, str(e))
 
 
-@app.get("/api/groups")
-async def groups(c: WilmaClient = Depends(client_for)):
+@app.get("/api/assessments")
+async def assessments(c: WilmaClient = Depends(client_for)):
     try:
-        return {"groups": await c.get_groups()}
+        return {"assessments": await c.get_assessments()}
     except WilmaAPIError as e:
         raise HTTPException(502, str(e))
 
@@ -177,9 +177,7 @@ async def groups(c: WilmaClient = Depends(client_for)):
 async def attendance(date: Optional[str] = None, c: WilmaClient = Depends(client_for)):
     target = datetime.strptime(date, "%Y-%m-%d").date() if date else None
     try:
-        data = await c.get_attendance(target)
-        data["excuse_types"] = await c.get_excuse_types() if data.get("allow_excuse") else []
-        return data
+        return await c.get_attendance(target)
     except WilmaAPIError as e:
         raise HTTPException(502, str(e))
 

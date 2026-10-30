@@ -25,30 +25,98 @@ async function submit() {
 </script>
 
 <template>
-  <v-container class="fill-height" style="max-width: 420px">
-    <div class="w-100">
-      <div class="text-h4 font-weight-bold mb-1">koulu</div>
-      <div class="text-body-2 text-medium-emphasis mb-8">Wilma, mutta nopeampi.</div>
-      <v-form @submit.prevent="submit">
-        <v-text-field v-model="url" label="Wilma-osoite" placeholder="koulu.inschool.fi" class="mb-3" autocapitalize="none" />
-        <v-text-field v-model="user" label="Käyttäjätunnus" class="mb-3" autocapitalize="none" />
-        <v-text-field v-model="pass" label="Salasana" type="password" class="mb-3" />
-        <v-alert v-if="err" type="error" variant="tonal" density="compact" class="mb-3">{{ err }}</v-alert>
-        <v-btn
-          type="submit"
-          block
-          size="large"
-          color="white"
-          class="text-black font-weight-bold"
-          :loading="busy"
-          :disabled="!url || !user || !pass"
-        >
-          Kirjaudu
-        </v-btn>
-      </v-form>
-      <div class="text-caption text-medium-emphasis mt-6">
-        Sama tunnus kuin Wilmassa. Sessio pysyy elossa palvelimella — salasanaa ei tallenneta laitteelle.
-      </div>
+  <div class="login-wrap">
+    <div class="login-inner">
+      <div class="brand">koulu</div>
+      <div class="brand-sub">Wilma, mutta nopeampi.</div>
+
+      <form class="login-form" @submit.prevent="submit">
+        <input v-model="url" class="field" placeholder="koulu.inschool.fi" autocapitalize="none" spellcheck="false" />
+        <input v-model="user" class="field" placeholder="Käyttäjätunnus" autocapitalize="none" spellcheck="false" />
+        <input v-model="pass" class="field" type="password" placeholder="Salasana" />
+        <div v-if="err" class="login-err">{{ err }}</div>
+        <button class="login-btn" type="submit" :disabled="busy || !url || !user || !pass">
+          {{ busy ? "Kirjaudutaan…" : "Kirjaudu" }}
+        </button>
+      </form>
+
+      <div class="login-foot">Sama tunnus kuin Wilmassa.</div>
     </div>
-  </v-container>
+  </div>
 </template>
+
+<style scoped>
+.login-wrap {
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.login-inner {
+  width: 100%;
+  max-width: 340px;
+}
+.brand {
+  font-size: 52px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+.brand-sub {
+  color: #8e8e93;
+  font-size: 15px;
+  margin: 6px 0 40px;
+}
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.field {
+  width: 100%;
+  height: 50px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 14px;
+  background: #141416;
+  color: #f2f2f7;
+  font-size: 15px;
+  outline: none;
+  transition: background 0.15s ease;
+}
+.field::placeholder {
+  color: #63636b;
+}
+.field:focus {
+  background: #1d1d21;
+}
+.login-err {
+  color: #ff6961;
+  font-size: 13px;
+  padding: 2px 4px;
+}
+.login-btn {
+  height: 50px;
+  margin-top: 6px;
+  border: 0;
+  border-radius: 14px;
+  background: #fff;
+  color: #000;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.15s ease, transform 0.1s ease;
+}
+.login-btn:active {
+  transform: scale(0.985);
+}
+.login-btn:disabled {
+  opacity: 0.35;
+}
+.login-foot {
+  margin-top: 48px;
+  color: #56565e;
+  font-size: 12.5px;
+}
+</style>

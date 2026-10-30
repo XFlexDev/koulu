@@ -21,78 +21,205 @@ onMounted(() => {
   api.schedule(todayStr).then((w) => (week.value = w)).catch((e) => (err.value = e.message));
 });
 
-const day = computed<Day | null>(() => {
-  if (!week.value) return null;
-  return week.value.days.find((d) => d.date === todayStr) || null;
-});
+const day = computed<Day | null>(() => week.value?.days.find((d) => d.date === todayStr) || null);
 
 const n = nowMin();
 const lessons = computed(() => day.value?.lessons || []);
-const current = computed(() => lessons.value.find((l) => toMin(l.start) <= n && toMin(l.end) > n));
-const next = computed(() => lessons.value.find((l) => toMin(l.start) > n));
-const done = computed(() => lessons.value.length > 0 && !current.value && !next.value);
+const teach = computed(() => lessons.value.filter((l) => !l.break));
+const current = computed(() => lessons.value.find((l) => !l.break && toMin(l.start) <= n && toMin(l.end) > n));
+const next = computed(() => lessons.value.find((l) => !l.break && toMin(l.start) > n));
+const done = computed(() => teach.value.length > 0 && !current.value && !next.value);
 
-const dateLabel = new Date().toLocaleDateString("fi-FI", { weekday: "long", day: "numeric", month: "numeric" });
+const dateLabel = new Date().toLocaleDateString("fi-FI", { weekday: "long", day: "numeric", month: "long" });
 
 function progress(l: Lesson) {
   return Math.min(100, Math.max(0, ((n - toMin(l.start)) / (toMin(l.end) - toMin(l.start))) * 100));
 }
+function inMin(l: Lesson) {
+  return toMin(l.start) - n;
+}
 </script>
 
 <template>
-  <div class="pt-3 pb-24">
-    <div class="text-h5 font-weight-bold text-capitalize mb-4">{{ dateLabel }}</div>
+  <div>
+    <div class="today-head">
+      <div class="big-title text-capitalize">{{ dateLabel }}</div>
+    </div>
 
-    <v-alert v-if="err" type="error" variant="tonal">{{ err }}</v-alert>
-    <div v-if="!week && !err" class="text-medium-emphasis">Ladataan…</div>
+    <div v-if="err" class="err-box">{{ err }}</div>
+    <div v-if="!week && !err" class="subtle">Ladataan…</div>
 
     <template v-if="day">
-      <v-card v-if="current" class="mb-3 overflow-hidden">
-        <div class="d-flex">
-          <div :style="{ width: '5px', background: current.color }" />
-          <div class="pa-4 flex-1">
-            <div class="text-overline text-medium-emphasis">Nyt</div>
-            <div class="text-h6">{{ current.subject }}</div>
-            <div class="text-body-2 text-medium-emphasis mt-1">
-              {{ current.start }}–{{ current.end }}
-              <template v-if="current.room"> · {{ current.room }}</template>
-              <template v-if="current.teachers[0]"> · {{ current.teachers[0] }}</template>
-            </div>
-            <v-progress-linear :model-value="progress(current)" :color="current.color" class="mt-3" rounded />
-            <div class="text-caption text-medium-emphasis mt-1">{{ toMin(current.end) - n }} min jäljellä</div>
-          </div>
+      <!-- hero: now / next -->
+      <div v-if="current" class="hero" :style="{ '--c': current.color }">
+        <div class="hero-tag">Nyt</div>
+        <div class="hero-subject">{{ current.subject }}</div>
+        <div class="hero-meta mono-time">
+          {{ current.start }}–{{ current.end }}<template v-if="current.room"> · {{ current.room }}</template
+          ><template v-if="current.teachers[0]"> · {{ current.teachers[0] }}</template>
         </div>
-      </v-card>
+        <div class="hero-bar"><div class="hero-bar-fill" :style="{ width: progress(current) + '%', background: current.color }" /></div>
+        <div class="hero-left subtle">{{ toMin(current.end) - n }} min jäljellä</div>
+      </div>
 
-      <v-card v-else-if="next && !done" class="mb-3 overflow-hidden">
-        <div class="d-flex">
-          <div :style="{ width: '5px', background: next.color }" />
-          <div class="pa-4 flex-1">
-            <div class="text-overline text-medium-emphasis">Seuraavaksi</div>
-            <div class="text-h6">{{ next.subject }}</div>
-            <div class="text-body-2 text-medium-emphasis mt-1">
-              klo {{ next.start }}<template v-if="next.room"> · {{ next.room }}</template> · {{ toMin(next.start) - n }} min päästä
+      <div v-else-if="next && !done" class="hero" :style="{ '--c': next.color }">
+        <div class="hero-tag">Seuraavaksi</div>
+        <div class="hero-subject">{{ next.subject }}</div>
+        <div class="hero-meta mono-time">
+          klo {{ next.start }}<template v-if="next.room"> · {{ next.room }}</template> · {{ inMin(next) }} min päästä
+        </div>
+      </div>
+
+      <div v-else-if="done" class="hero hero-empty">
+        <div class="hero-subject">Päivä ohi 🎉</div>
+      </div>
+      <div v-else-if="lessons.length === 0" class="hero hero-empty">
+        <div class="hero-subject">Ei tunteja tänään</div>
+      </div>
+
+      <!-- timeline -->
+      <div class="tl">
+        <div
+          v-for="(l, i) in lessons"
+          :key="i"
+          class="tl-row"
+          :class="{ past: toMin(l.end) <= n, now: l === current, brk: l.break }"
+        >
+          <div class="tl-time mono-time">{{ l.start }}</div>
+          <div class="tl-dot" :style="{ background: l.break ? '#2a2a2e' : l.color }" />
+          <div class="tl-body">
+            <div class="tl-subject">{{ l.subject }}</div>
+            <div class="tl-meta subtle">
+              <template v-if="l.room">{{ l.room }}</template>
+              <template v-if="l.teachers[0]">{{ l.room ? " · " : "" }}{{ l.teachers[0] }}</template>
+              <template v-if="l.info">{{ l.room || l.teachers[0] ? " · " : "" }}{{ l.info }}</template>
             </div>
           </div>
+          <div class="tl-end mono-time subtle">{{ l.end }}</div>
         </div>
-      </v-card>
-
-      <v-card v-else-if="done" class="mb-3 pa-4 text-medium-emphasis">Päivä ohi. 🎉</v-card>
-      <v-card v-else-if="lessons.length === 0" class="mb-3 pa-4 text-medium-emphasis">Ei tunteja tänään.</v-card>
-
-      <v-card v-for="(l, i) in lessons" :key="i" class="mb-2" :class="{ 'opacity-40': toMin(l.end) <= n || l.break }">
-        <div class="d-flex align-center pa-3 ga-3">
-          <div :style="{ width: '4px', height: '40px', borderRadius: '2px', background: l.color }" />
-          <div class="flex-1" style="min-width: 0">
-            <div class="text-body-1 font-weight-medium text-truncate">{{ l.subject }}</div>
-            <div class="text-caption text-medium-emphasis text-truncate">
-              {{ l.room }}<template v-if="l.teachers[0]"> · {{ l.teachers[0] }}</template>
-            </div>
-          </div>
-          <div class="text-body-2 text-medium-emphasis" style="font-variant-numeric: tabular-nums">{{ l.start }}–{{ l.end }}</div>
-          <v-icon v-if="l === current" size="10" :color="l.color">mdi-circle</v-icon>
-        </div>
-      </v-card>
+      </div>
     </template>
   </div>
 </template>
+
+<style scoped>
+.today-head {
+  margin: 14px 0 20px;
+}
+.err-box {
+  background: #1a0d0d;
+  color: #ff6961;
+  border-radius: 14px;
+  padding: 12px 14px;
+  font-size: 13px;
+  margin-bottom: 14px;
+}
+
+.hero {
+  border-radius: 22px;
+  padding: 20px 20px 18px;
+  margin-bottom: 26px;
+  background: linear-gradient(160deg, color-mix(in srgb, var(--c, #333) 16%, #0c0c0e), #0c0c0e 62%);
+}
+.hero-tag {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--c, #999) 80%, #fff);
+  margin-bottom: 8px;
+}
+.hero-subject {
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  line-height: 1.15;
+}
+.hero-meta {
+  color: #b8b8bf;
+  font-size: 14px;
+  margin-top: 6px;
+}
+.hero-bar {
+  height: 3px;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.09);
+  margin-top: 16px;
+  overflow: hidden;
+}
+.hero-bar-fill {
+  height: 100%;
+  border-radius: 99px;
+}
+.hero-left {
+  font-size: 12px;
+  margin-top: 7px;
+}
+.hero-empty {
+  background: #0c0c0e;
+}
+
+.tl {
+  position: relative;
+}
+.tl-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px 2px;
+  border-bottom: 1px solid #141416;
+}
+.tl-row:last-child {
+  border-bottom: 0;
+}
+.tl-time {
+  width: 42px;
+  padding-top: 2px;
+  font-size: 13px;
+  color: #b8b8bf;
+  flex-shrink: 0;
+}
+.tl-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  margin-top: 5px;
+  flex-shrink: 0;
+}
+.tl-body {
+  flex: 1;
+  min-width: 0;
+}
+.tl-subject {
+  font-size: 15px;
+  font-weight: 650;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tl-meta {
+  font-size: 12.5px;
+  margin-top: 1px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tl-end {
+  font-size: 13px;
+  padding-top: 2px;
+  flex-shrink: 0;
+}
+.tl-row.past {
+  opacity: 0.32;
+}
+.tl-row.brk {
+  opacity: 0.45;
+}
+.tl-row.now .tl-subject {
+  color: #fff;
+}
+.tl-row.now .tl-time {
+  color: #fff;
+  font-weight: 700;
+}
+</style>

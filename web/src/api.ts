@@ -38,7 +38,7 @@ export const api = {
   message: (id: number) => req(`/messages/${id}`),
   reply: (id: number, body: string) =>
     req(`/messages/${id}/reply`, { method: "POST", body: JSON.stringify({ body }) }),
-  send: (recipients: { id: string; type: string }[], subject: string, body: string) =>
+  send: (recipients: { id: string; type: string; n_class?: string | null }[], subject: string, body: string) =>
     req("/messages", { method: "POST", body: JSON.stringify({ recipients, subject, body }) }),
   recipients: () => req("/recipients"),
   exams: () => req("/exams"),
@@ -68,5 +68,6 @@ export interface Day {
 }
 export interface Week {
   week_start: string;
+  week_end: string;
   days: Day[];
 }

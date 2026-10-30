@@ -26,7 +26,7 @@ async function send() {
   busy.value = true;
   try {
     await api.send(
-      picked.value.map((p) => ({ id: String(p.id), type: p.type })),
+      picked.value.map((p) => ({ id: String(p.id), type: p.type, n_class: p.n_class })),
       subject.value,
       body.value
     );
@@ -40,46 +40,122 @@ async function send() {
 </script>
 
 <template>
-  <v-card rounded="t-xl" color="#0c0c0d" class="pa-5" style="max-height: 90vh; overflow-y: auto">
-    <div class="text-h6 mb-4">Uusi viesti</div>
-    <v-text-field v-model="q" placeholder="Hae vastaanottajaa…" class="mb-2" />
-    <div v-if="picked.length" class="d-flex flex-wrap ga-1 mb-2">
-      <v-chip
-        v-for="p in picked"
-        :key="p.type + '-' + p.id"
-        closable
-        size="small"
-        @click:close="picked = picked.filter((x) => x !== p)"
+  <div class="sheet">
+    <div class="sheet-title">Uusi viesti</div>
+
+    <input v-model="q" class="field" placeholder="Hae vastaanottajaa…" />
+    <div v-if="picked.length" class="picked">
+      <button v-for="p in picked" :key="p.type + '-' + p.id" class="chip" @click="picked = picked.filter((x) => x !== p)">
+        {{ p.name }} <v-icon size="14">mdi-close</v-icon>
+      </button>
+    </div>
+    <div class="recip-list">
+      <button
+        v-for="r in filtered.slice(0, 40)"
+        :key="r.type + '-' + r.id + '-' + (r.n_class || '')"
+        class="recip"
+        @click="!picked.includes(r) && picked.push(r)"
       >
-        {{ p.name }}
-      </v-chip>
+        {{ r.name }} <span class="rtype">{{ r.type }}</span>
+      </button>
     </div>
-    <div style="max-height: 160px; overflow-y: auto" class="mb-3">
-      <v-list bg-color="transparent" density="compact" class="pa-0">
-        <v-list-item
-          v-for="r in filtered.slice(0, 40)"
-          :key="r.type + '-' + r.id"
-          class="rounded mb-1 border"
-          @click="!picked.includes(r) && picked.push(r)"
-        >
-          <v-list-item-title class="text-body-2">
-            {{ r.name }} <span class="text-caption text-medium-emphasis">{{ r.type }}</span>
-          </v-list-item-title>
-        </v-list-item>
-      </v-list>
-    </div>
-    <v-text-field v-model="subject" placeholder="Aihe" class="mb-2" />
-    <v-textarea v-model="body" placeholder="Viesti…" rows="4" class="mb-3" />
-    <v-btn
-      block
-      size="large"
-      color="white"
-      class="text-black font-weight-bold"
-      :loading="busy"
-      :disabled="!picked.length || !subject.trim() || !body.trim()"
-      @click="send"
-    >
-      Lähetä
-    </v-btn>
-  </v-card>
+
+    <input v-model="subject" class="field" placeholder="Aihe" />
+    <textarea v-model="body" class="field area" rows="4" placeholder="Viesti…" />
+    <button class="send-btn" :disabled="busy || !picked.length || !subject.trim() || !body.trim()" @click="send">
+      {{ busy ? "Lähetetään…" : "Lähetä" }}
+    </button>
+  </div>
 </template>
+
+<style scoped>
+.sheet {
+  background: #0c0c0d;
+  border-radius: 24px 24px 0 0;
+  padding: 26px 22px 34px;
+  max-height: 90vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.sheet-title {
+  font-size: 21px;
+  font-weight: 750;
+  margin-bottom: 8px;
+}
+.field {
+  width: 100%;
+  min-height: 46px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 12px;
+  background: #141416;
+  color: #f2f2f7;
+  font-size: 15px;
+  outline: none;
+}
+.field::placeholder {
+  color: #63636b;
+}
+.field.area {
+  padding-top: 12px;
+  resize: none;
+}
+.picked {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.chip {
+  border: 0;
+  background: #26262b;
+  color: #e8e8ec;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 12.5px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+}
+.recip-list {
+  max-height: 170px;
+  overflow-y: auto;
+  border-radius: 12px;
+  background: #101012;
+}
+.recip {
+  display: block;
+  width: 100%;
+  border: 0;
+  border-bottom: 1px solid #1a1a1d;
+  background: transparent;
+  color: #e8e8ec;
+  text-align: left;
+  padding: 11px 14px;
+  font-size: 14px;
+  cursor: pointer;
+}
+.recip:last-child {
+  border-bottom: 0;
+}
+.rtype {
+  color: #63636b;
+  font-size: 12px;
+}
+.send-btn {
+  height: 48px;
+  border: 0;
+  border-radius: 12px;
+  background: #fff;
+  color: #000;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.send-btn:disabled {
+  opacity: 0.35;
+}
+</style>

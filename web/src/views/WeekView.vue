@@ -43,89 +43,215 @@ const selDay = computed<Day | null>(() => {
   return (
     week.value.days.find((d) => d.date === sel.value) ||
     week.value.days.find((d) => d.date === today) ||
-    week.value.days.find((d) => d.lessons.length) ||
     week.value.days[0]
   );
 });
 </script>
 
 <template>
-  <div class="pt-3 pb-24">
-    <div class="d-flex align-center justify-space-between mb-4">
-      <div class="text-h5 font-weight-bold">Viikko{{ weekNum ? ` ${weekNum}` : "" }}</div>
-      <div class="d-flex ga-2">
-        <v-btn icon="mdi-chevron-left" variant="tonal" size="small" @click="shift(-7)" />
-        <v-btn variant="tonal" size="small" @click="anchor = mondayOf(new Date())">Nyt</v-btn>
-        <v-btn icon="mdi-chevron-right" variant="tonal" size="small" @click="shift(7)" />
+  <div>
+    <div class="wk-head">
+      <div>
+        <div class="big-title">Viikko{{ weekNum ? ` ${weekNum}` : "" }}</div>
+        <div class="subtle" style="font-size: 13px; margin-top: 2px">
+          {{ week?.week_start?.split("-").reverse().join(".") }} – {{ week?.week_end?.split("-").reverse().join(".") }}
+        </div>
+      </div>
+      <div class="wk-nav">
+        <button class="navb" @click="shift(-7)"><v-icon size="18">mdi-chevron-left</v-icon></button>
+        <button class="navb" @click="anchor = mondayOf(new Date())">Nyt</button>
+        <button class="navb" @click="shift(7)"><v-icon size="18">mdi-chevron-right</v-icon></button>
       </div>
     </div>
 
-    <v-alert v-if="err" type="error" variant="tonal">{{ err }}</v-alert>
-    <div v-if="!week && !err" class="text-medium-emphasis">Ladataan…</div>
+    <div v-if="err" class="err-box">{{ err }}</div>
+    <div v-if="!week && !err" class="subtle">Ladataan…</div>
 
     <template v-if="week">
-      <div class="d-flex ga-1 overflow-x-auto pb-2 mb-4" style="margin: 0 -12px; padding: 0 12px">
-        <v-card
+      <div class="dayrow">
+        <button
           v-for="d in week.days.slice(0, 7)"
           :key="d.date"
-          class="shrink-0 pa-2 d-flex flex-column ga-1"
-          :variant="d.date === today ? 'outlined' : 'flat'"
-          :color="d.date === today ? 'surface-bright' : 'surface'"
-          style="width: 74px; min-height: 110px"
+          class="daypill"
+          :class="{ sel: selDay?.date === d.date, today: d.date === today }"
           @click="sel = d.date"
         >
-          <div class="text-center">
-            <div class="text-caption text-medium-emphasis">{{ WD[d.weekday - 1] }}</div>
-            <div class="text-body-2 font-weight-medium">
-              {{ new Date(d.date).getDate() }}.{{ new Date(d.date).getMonth() + 1 }}.
-            </div>
-          </div>
-          <div
-            v-for="(l, i) in d.lessons"
-            :key="i"
-            class="rounded px-1 py-1"
-            :style="{ background: l.color + '22', borderLeft: `2px solid ${l.color}`, fontSize: '10px' }"
-          >
-            <div class="font-weight-medium text-truncate">{{ l.code || l.subject }}</div>
-            <div class="text-medium-emphasis" style="font-variant-numeric: tabular-nums">{{ l.start }}</div>
-          </div>
-        </v-card>
+          <span class="daypill-wd">{{ WD[d.weekday - 1] }}</span>
+          <span class="daypill-num">{{ new Date(d.date).getDate() }}</span>
+          <span class="daypill-dots">
+            <i v-for="(l, i) in d.lessons.filter((x) => !x.break).slice(0, 4)" :key="i" :style="{ background: l.color }" />
+          </span>
+        </button>
       </div>
 
-      <v-btn-group divided density="comfortable" class="w-100 mb-3" variant="flat">
-        <v-btn
-          v-for="d in week.days.slice(0, 7)"
-          :key="d.date"
-          size="small"
-          class="flex-1"
-          :color="selDay?.date === d.date ? 'white' : undefined"
-          :class="selDay?.date === d.date ? 'text-black' : ''"
-          @click="sel = d.date"
-        >
-          {{ WD[d.weekday - 1] }}
-        </v-btn>
-      </v-btn-group>
-
       <template v-if="selDay">
-        <v-card v-if="selDay.lessons.length === 0" class="pa-4 text-medium-emphasis">Vapaapäivä.</v-card>
-        <v-card v-for="(l, i) in selDay.lessons" :key="i" class="mb-2 pa-4">
-          <div class="d-flex justify-space-between ga-3">
-            <div style="min-width: 0">
-              <div class="text-body-1 font-weight-medium">{{ l.subject }}</div>
-              <div class="text-caption text-medium-emphasis mt-1">
-                {{ l.room }}
-                <template v-if="l.teachers.length"> · {{ l.teachers.join(", ") }}</template>
-                <template v-if="l.class"> · {{ l.class }}</template>
+        <div v-if="selDay.lessons.length === 0" class="empty-day subtle">Vapaapäivä.</div>
+        <div v-else class="tl">
+          <div v-for="(l, i) in selDay.lessons" :key="i" class="tl-row" :class="{ brk: l.break }">
+            <div class="tl-time mono-time">{{ l.start }}</div>
+            <div class="tl-dot" :style="{ background: l.break ? '#2a2a2e' : l.color }" />
+            <div class="tl-body">
+              <div class="tl-subject">{{ l.subject }}</div>
+              <div class="tl-meta subtle">
+                <template v-if="l.room">{{ l.room }}</template>
+                <template v-if="l.teachers.length">{{ l.room ? " · " : "" }}{{ l.teachers.join(", ") }}</template>
+                <template v-if="l.info">{{ l.room || l.teachers.length ? " · " : "" }}{{ l.info }}</template>
               </div>
-              <div v-if="l.info" class="text-caption text-medium-emphasis mt-1">{{ l.info }}</div>
             </div>
-            <div class="text-body-2 text-medium-emphasis flex-shrink-0" style="font-variant-numeric: tabular-nums">
-              {{ l.start }}–{{ l.end }}
-            </div>
+            <div class="tl-end mono-time subtle">{{ l.end }}</div>
           </div>
-          <div class="mt-3 rounded-pill" :style="{ height: '2px', background: l.color }" />
-        </v-card>
+        </div>
       </template>
     </template>
   </div>
 </template>
+
+<style scoped>
+.wk-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin: 14px 0 20px;
+}
+.wk-nav {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+}
+.navb {
+  height: 34px;
+  min-width: 34px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 999px;
+  background: #161618;
+  color: #e8e8ec;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.navb:active {
+  transform: scale(0.96);
+}
+.err-box {
+  background: #1a0d0d;
+  color: #ff6961;
+  border-radius: 14px;
+  padding: 12px 14px;
+  font-size: 13px;
+  margin-bottom: 14px;
+}
+
+.dayrow {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 22px;
+}
+.daypill {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 10px 0 8px;
+  border: 0;
+  border-radius: 16px;
+  background: transparent;
+  color: #f2f2f7;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.daypill.sel {
+  background: #1b1b1f;
+}
+.daypill.today .daypill-num {
+  color: #fff;
+}
+.daypill.today:not(.sel) .daypill-num {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.daypill-wd {
+  font-size: 11px;
+  font-weight: 600;
+  color: #8e8e93;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.daypill.sel .daypill-wd {
+  color: #d5d5da;
+}
+.daypill-num {
+  font-size: 18px;
+  font-weight: 750;
+}
+.daypill-dots {
+  display: flex;
+  gap: 3px;
+  height: 5px;
+  align-items: center;
+}
+.daypill-dots i {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  display: block;
+}
+
+.empty-day {
+  padding: 40px 0;
+  text-align: center;
+  font-size: 14px;
+}
+
+.tl-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px 2px;
+  border-bottom: 1px solid #141416;
+}
+.tl-row:last-child {
+  border-bottom: 0;
+}
+.tl-time {
+  width: 42px;
+  padding-top: 2px;
+  font-size: 13px;
+  color: #b8b8bf;
+  flex-shrink: 0;
+}
+.tl-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  margin-top: 5px;
+  flex-shrink: 0;
+}
+.tl-body {
+  flex: 1;
+  min-width: 0;
+}
+.tl-subject {
+  font-size: 15px;
+  font-weight: 650;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tl-meta {
+  font-size: 12.5px;
+  margin-top: 1px;
+}
+.tl-end {
+  font-size: 13px;
+  padding-top: 2px;
+  flex-shrink: 0;
+}
+.tl-row.brk {
+  opacity: 0.45;
+}
+</style>

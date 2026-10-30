@@ -4,18 +4,11 @@ import { api } from "../api";
 
 const emit = defineEmits<{ logout: [] }>();
 const me = ref<any>(null);
-const sec = ref<string | null>(null);
 
 const exams = ref<any[] | null>(null);
 const assessments = ref<any[] | null>(null);
 const observations = ref<any[] | null>(null);
-const excuses = ref<any[] | null>(null);
 const news = ref<any[] | null>(null);
-
-const excusePicked = ref<number[]>([]);
-const excuseText = ref("");
-const excuseBusy = ref(false);
-const excuseDone = ref(false);
 
 onMounted(async () => {
   try {
@@ -32,12 +25,9 @@ onMounted(async () => {
     assessments.value = [];
   }
   try {
-    const a = await api.attendance();
-    observations.value = a.observations;
-    excuses.value = a.excuses;
+    observations.value = (await api.attendance()).observations;
   } catch {
     observations.value = [];
-    excuses.value = [];
   }
   try {
     news.value = (await api.news()).news;
@@ -45,22 +35,6 @@ onMounted(async () => {
     news.value = [];
   }
 });
-
-async function sendExcuse() {
-  excuseBusy.value = true;
-  try {
-    await api.excuse(excusePicked.value, 3, excuseText.value);
-    excuseDone.value = true;
-    const a = await api.attendance();
-    observations.value = a.observations;
-    excuses.value = a.excuses;
-    excusePicked.value = [];
-  } catch (e: any) {
-    alert(e.message);
-  } finally {
-    excuseBusy.value = false;
-  }
-}
 
 async function doLogout() {
   try {
@@ -71,80 +45,151 @@ async function doLogout() {
 </script>
 
 <template>
-  <div class="pt-3 pb-24">
-    <div class="d-flex align-center justify-space-between mb-4">
-      <div class="text-h5 font-weight-bold">{{ me?.account ? `${me.account.firstname} ${me.account.lastname}` : "Lisää" }}</div>
-      <v-btn variant="tonal" size="small" @click="doLogout">Kirjaudu ulos</v-btn>
+  <div>
+    <div class="more-head">
+      <div class="big-title">{{ me?.account?.firstname || "Lisää" }}</div>
+      <div class="subtle" style="font-size: 13px; margin-top: 2px">
+        {{ me?.account ? `${me.account.firstname} ${me.account.lastname}` : "" }}
+      </div>
     </div>
 
-    <v-expansion-panels variant="accordion">
-      <v-expansion-panel title="Kokeet" @click="sec === 'exams' || (sec = 'exams')">
-        <v-expansion-panel-text>
-          <div v-if="!exams" class="text-medium-emphasis">Ladataan…</div>
-          <div v-else-if="exams.length === 0" class="text-medium-emphasis">Ei kokeita.</div>
-          <div v-for="(e, i) in exams" :key="i" class="py-2 border-b" style="border-color: #1c1c1e">
-            <div class="font-weight-medium">{{ e.name || e.subject }}</div>
-            <div class="text-caption text-medium-emphasis">{{ e.date }}<template v-if="e.time"> klo {{ e.time }}</template><template v-if="e.course"> · {{ e.course }}</template></div>
-            <div v-if="e.info" class="text-caption text-medium-emphasis mt-1">{{ e.info }}</div>
+    <div class="sec-label">Kokeet</div>
+    <div v-if="!exams" class="subtle sec-pad">Ladataan…</div>
+    <div v-else-if="exams.length === 0" class="subtle sec-pad">Ei kokeita.</div>
+    <div v-else class="ilist">
+      <div v-for="(e, i) in exams" :key="i" class="irow">
+        <div class="irow-date mono-time">{{ e.date }}<span v-if="e.time"> · {{ e.time }}</span></div>
+        <div class="irow-main">
+          <div class="irow-title">{{ e.name }}</div>
+          <div class="irow-sub subtle">
+            {{ e.course || e.course_code }}<template v-if="e.teacher"> · {{ e.teacher }}</template>
           </div>
-        </v-expansion-panel-text>
-      </v-expansion-panel>
+          <div v-if="e.info" class="irow-info subtle">{{ e.info }}</div>
+        </div>
+      </div>
+    </div>
 
-      <v-expansion-panel title="Arviointikeskustelut">
-        <v-expansion-panel-text>
-          <div v-if="!assessments" class="text-medium-emphasis">Ladataan…</div>
-          <div v-else-if="assessments.length === 0" class="text-medium-emphasis">Ei arviointikeskusteluja.</div>
-          <div v-for="(a, i) in assessments" :key="i" class="py-2 border-b" style="border-color: #1c1c1e">
-            <div class="font-weight-medium">{{ a.start }} – {{ a.end }}</div>
-          </div>
-        </v-expansion-panel-text>
-      </v-expansion-panel>
+    <div class="sec-label">Arviointikeskustelut</div>
+    <div v-if="!assessments" class="subtle sec-pad">Ladataan…</div>
+    <div v-else-if="assessments.length === 0" class="subtle sec-pad">Ei arviointikeskusteluja.</div>
+    <div v-else class="ilist">
+      <div v-for="(a, i) in assessments" :key="i" class="irow">
+        <div class="irow-main">
+          <div class="irow-title mono-time">{{ a.start }} – {{ a.end }}</div>
+        </div>
+      </div>
+    </div>
 
-      <v-expansion-panel title="Poissaolot">
-        <v-expansion-panel-text>
-          <div v-if="observations && observations.length" class="mb-4">
-            <div class="text-caption text-medium-emphasis mb-2">Merkitse selvitys:</div>
-            <v-card
-              v-for="o in observations"
-              :key="o.id"
-              class="pa-3 mb-2 d-flex align-center ga-3"
-              :variant="excusePicked.includes(o.id) ? 'outlined' : 'flat'"
-              @click="excusePicked = excusePicked.includes(o.id) ? excusePicked.filter((x) => x !== o.id) : [...excusePicked, o.id]"
-            >
-              <v-checkbox-btn :model-value="excusePicked.includes(o.id)" />
-              <div>
-                <div class="text-body-2 font-weight-medium">{{ o.timestamp }} — {{ o.type }}</div>
-                <div v-if="o.description" class="text-caption text-medium-emphasis">{{ o.description }}</div>
-              </div>
-            </v-card>
-            <v-textarea v-model="excuseText" placeholder="Selvitys (valinnainen)" rows="2" class="mb-2" />
-            <v-btn block color="white" class="text-black font-weight-bold" :loading="excuseBusy" :disabled="!excusePicked.length" @click="sendExcuse">
-              {{ excuseDone ? "Tallennettu" : "Tallenna selvitys" }}
-            </v-btn>
-          </div>
-          <div v-else-if="observations" class="text-medium-emphasis mb-3">Ei selvittämättömiä poissaoloja.</div>
+    <div class="sec-label">Poissaolot</div>
+    <div v-if="!observations" class="subtle sec-pad">Ladataan…</div>
+    <div v-else-if="observations.length === 0" class="subtle sec-pad">Ei selvittämättömiä poissaoloja.</div>
+    <div v-else class="ilist">
+      <div v-for="(o, i) in observations" :key="i" class="irow">
+        <div class="irow-main">
+          <div class="irow-title">{{ o.timestamp }} — {{ o.type }}</div>
+          <div v-if="o.description" class="irow-sub subtle">{{ o.description }}</div>
+        </div>
+      </div>
+    </div>
 
-          <div v-if="excuses && excuses.length">
-            <div class="text-caption text-medium-emphasis mb-2">Selvitykset:</div>
-            <div v-for="(x, i) in excuses" :key="i" class="py-2 border-b" style="border-color: #1c1c1e">
-              <div class="text-body-2 font-weight-medium">{{ x.type }} · {{ x.period }}</div>
-              <div class="text-caption text-medium-emphasis">{{ x.description }}</div>
-            </div>
+    <div class="sec-label">Tiedotteet</div>
+    <div v-if="!news" class="subtle sec-pad">Ladataan…</div>
+    <div v-else-if="news.length === 0" class="subtle sec-pad">Ei tiedotteita.</div>
+    <div v-else class="ilist">
+      <div v-for="(x, i) in news" :key="i" class="irow">
+        <div class="irow-main">
+          <div class="irow-title">
+            {{ x.title }}
+            <span v-if="x.important" class="tag">Tärkeä</span>
+            <span v-if="x.sticky" class="tag">Pysyvä</span>
           </div>
-        </v-expansion-panel-text>
-      </v-expansion-panel>
+          <div class="irow-sub subtle">{{ x.date }}<template v-if="x.author"> · {{ x.author }}</template></div>
+          <div v-if="x.description" class="irow-info subtle">{{ x.description }}</div>
+        </div>
+      </div>
+    </div>
 
-      <v-expansion-panel title="Tiedotteet">
-        <v-expansion-panel-text>
-          <div v-if="!news" class="text-medium-emphasis">Ladataan…</div>
-          <div v-else-if="news.length === 0" class="text-medium-emphasis">Ei tiedotteita.</div>
-          <div v-for="(n, i) in news" :key="i" class="py-2 border-b" style="border-color: #1c1c1e">
-            <div class="font-weight-medium">{{ n.title }}</div>
-            <div class="text-caption text-medium-emphasis">{{ n.publisher }} · {{ n.timestamp }}</div>
-            <div class="text-body-2 mt-1">{{ n.description }}</div>
-          </div>
-        </v-expansion-panel-text>
-      </v-expansion-panel>
-    </v-expansion-panels>
+    <button class="logout" @click="doLogout">Kirjaudu ulos</button>
   </div>
 </template>
+
+<style scoped>
+.more-head {
+  margin: 14px 0 26px;
+}
+.sec-label {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #8e8e93;
+  margin: 26px 0 8px;
+}
+.sec-pad {
+  padding: 8px 2px 4px;
+  font-size: 14px;
+}
+.ilist {
+  display: flex;
+  flex-direction: column;
+}
+.irow {
+  display: flex;
+  gap: 12px;
+  padding: 12px 2px;
+  border-bottom: 1px solid #141416;
+}
+.irow:last-child {
+  border-bottom: 0;
+}
+.irow-date {
+  font-size: 13px;
+  color: #b8b8bf;
+  width: 108px;
+  flex-shrink: 0;
+  padding-top: 2px;
+}
+.irow-main {
+  flex: 1;
+  min-width: 0;
+}
+.irow-title {
+  font-size: 15px;
+  font-weight: 600;
+}
+.irow-sub {
+  font-size: 12.5px;
+  margin-top: 2px;
+}
+.irow-info {
+  font-size: 12.5px;
+  margin-top: 4px;
+  line-height: 1.45;
+}
+.tag {
+  display: inline-block;
+  font-size: 10.5px;
+  font-weight: 700;
+  background: #26262b;
+  color: #d5d5da;
+  border-radius: 6px;
+  padding: 2px 6px;
+  margin-left: 6px;
+  vertical-align: 2px;
+}
+.logout {
+  margin-top: 36px;
+  width: 100%;
+  height: 48px;
+  border: 0;
+  border-radius: 14px;
+  background: #161618;
+  color: #ff6961;
+  font-size: 14px;
+  font-weight: 650;
+  cursor: pointer;
+}
+.logout:active {
+  transform: scale(0.99);
+}
+</style>

@@ -1,19 +1,26 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import '../api.dart';
+
+const _fiDays = [
+  'maanantai', 'tiistai', 'keskiviikko', 'torstai',
+  'perjantai', 'lauantai', 'sunnuntai'
+];
 
 Color lessonColor(Map<String, dynamic> l) {
   final c = l['color'] as String?;
   if (c != null && c.startsWith('#')) {
     return Color(int.parse('FF${c.substring(1)}', radix: 16));
   }
-  return const Color(0xFF8AB4F8);
+  return const Color(0xFF4ADE80);
 }
 
 List<dynamic> lessonsOf(Map<String, dynamic>? day) =>
     (day?['lessons'] as List<dynamic>?) ?? [];
 
-String fmtDate(DateTime d) => DateFormat('yyyy-MM-dd').format(d);
+String fmtDate(DateTime d) =>
+    '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+String fiDate(DateTime d) => '${_fiDays[d.weekday - 1]} ${d.day}.${d.month}.';
 
 String teacherNames(Map<String, dynamic> l) =>
     ((l['teachers'] as List<dynamic>?) ?? []).join(', ');
@@ -86,7 +93,7 @@ class _TodayScreenState extends State<TodayScreen> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 64, 20, 24),
           children: [
-            Text(DateFormat('EEEE d.M.').format(DateTime.now()),
+            Text(fiDate(DateTime.now()),
                 style:
                     t.headlineMedium?.copyWith(fontWeight: FontWeight.w700)),
             const SizedBox(height: 16),
@@ -111,7 +118,7 @@ class _TodayScreenState extends State<TodayScreen> {
                                 letterSpacing: 1.5,
                                 fontWeight: FontWeight.w700)),
                         const SizedBox(height: 6),
-                        Text(hero['subject'] ?? '',
+                        Text(hero['subject'] ?? 'Tunti',
                             style: t.titleLarge
                                 ?.copyWith(fontWeight: FontWeight.w600)),
                         const SizedBox(height: 4),

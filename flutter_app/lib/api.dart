@@ -97,9 +97,11 @@ Future<void> send(List<Map<String, dynamic>> recipients, String subject,
     _req('POST', '/messages',
         body: {'recipients': recipients, 'subject': subject, 'body': body});
 
-/// [{id,name,type,n_class}]
+/// {recipients:[{id,name,type,n_class}]}
 Future<List<dynamic>> recipients() async =>
-    (await _req('GET', '/recipients')) as List<dynamic>? ?? [];
+    Map<String, dynamic>.from(await _req('GET', '/recipients'))['recipients']
+            as List<dynamic>? ??
+        [];
 
 /// {exams:[{date,time,name,course,teacher,info}]}
 Future<List<dynamic>> exams() async =>

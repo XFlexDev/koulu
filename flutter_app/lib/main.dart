@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'api.dart';
 import 'screens/login.dart';
 import 'screens/today.dart';
@@ -8,7 +7,6 @@ import 'screens/messages.dart';
 import 'screens/more.dart';
 
 void main() {
-  Intl.defaultLocale = 'fi';
   runApp(const KouluApp());
 }
 
@@ -18,9 +16,15 @@ class KouluApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = ColorScheme.fromSeed(
-      seedColor: const Color(0xFF8AB4F8),
+      seedColor: const Color(0xFF4ADE80),
       brightness: Brightness.dark,
-    ).copyWith(surface: Colors.black, surfaceContainerHighest: const Color(0xFF141417));
+    ).copyWith(
+      surface: Colors.black,
+      surfaceContainerHighest: const Color(0xFF101812),
+      surfaceContainerHigh: const Color(0xFF0C130E),
+      primary: const Color(0xFF4ADE80),
+      secondaryContainer: const Color(0xFF14241A),
+    );
     return MaterialApp(
       title: 'koulu',
       debugShowCheckedModeBanner: false,

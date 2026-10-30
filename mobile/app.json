@@ -1,0 +1,40 @@
+{
+  "expo": {
+    "name": "koulu",
+    "slug": "koulu",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "owner": "kreatix",
+    "scheme": "koulu",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "dev.kreatix.koulu"
+    },
+    "android": {
+      "package": "dev.kreatix.koulu",
+      "adaptiveIcon": {
+        "backgroundColor": "#000000",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      }
+    },
+    "updates": {
+      "fallbackToCacheTimeout": 0,
+      "url": "https://u.expo.dev/facf9598-5cc5-4518-b5a5-317a5c9a2d27"
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "facf9598-5cc5-4518-b5a5-317a5c9a2d27"
+      }
+    }
+  }
+}

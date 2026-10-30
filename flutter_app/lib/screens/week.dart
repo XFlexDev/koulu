@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
-import '../api.dart';
-import 'today.dart' show lessonColor, fmtDate, teacherNames;
 
-const _weekdays = ['Ma', 'Ti', 'Ke', 'To', 'Pe', 'La', 'Su'];
+import '../api.dart';
+import '../ui.dart';
+import 'today.dart' show fiDate, fmtDate, lessonColor, teacherNames, weekDays;
 
 class WeekScreen extends StatefulWidget {
   const WeekScreen({super.key});
+
   @override
   State<WeekScreen> createState() => _WeekScreenState();
 }
@@ -13,30 +14,36 @@ class WeekScreen extends StatefulWidget {
 class _WeekScreenState extends State<WeekScreen> {
   DateTime anchor = DateTime.now();
   Map<String, dynamic>? week;
-  int selected = 0;
+  String? selectedDate;
   bool loading = true;
-  String? error;
+  bool failed = false;
 
   Future<void> load() async {
     setState(() {
       loading = true;
-      error = null;
+      failed = false;
     });
     try {
-      final w = await schedule(fmtDate(anchor));
-      final days = (w['days'] as List<dynamic>?) ?? [];
+      final data = await schedule(fmtDate(anchor));
+      final days = (data['days'] as List<dynamic>? ?? [])
+          .map((day) => Map<String, dynamic>.from(day as Map))
+          .toList();
+      final visibleDays = _visibleDays(days);
+      final today = fmtDate(DateTime.now());
+      final currentDay = visibleDays.any((day) => day['date'] == selectedDate);
+      if (!mounted) return;
       setState(() {
-        week = w;
-        if (days.isNotEmpty) {
-          final today = fmtDate(DateTime.now());
-          final i = days.indexWhere((d) => d['date'] == today);
-          selected = i >= 0 ? i : 0;
-        } else {
-          selected = 0;
+        week = data;
+        if (!currentDay) {
+          selectedDate = visibleDays.any((day) => day['date'] == today)
+              ? today
+              : visibleDays.isEmpty
+              ? null
+              : visibleDays.first['date'] as String?;
         }
       });
-    } catch (e) {
-      setState(() => error = e.toString());
+    } catch (_) {
+      if (mounted) setState(() => failed = true);
     } finally {
       if (mounted) setState(() => loading = false);
     }
@@ -48,107 +55,215 @@ class _WeekScreenState extends State<WeekScreen> {
     load();
   }
 
-  void shift(int days) {
-    anchor = anchor.add(Duration(days: days));
+  void shiftWeek(int offset) {
+    anchor = anchor.add(Duration(days: offset));
+    selectedDate = null;
     load();
   }
 
   @override
   Widget build(BuildContext context) {
-    final t = Theme.of(context).textTheme;
-    final days = ((week?['days'] as List<dynamic>?) ?? [])
-        .cast<Map<String, dynamic>>();
-    final day = days.isNotEmpty ? days[selected.clamp(0, days.length - 1)] : null;
-    final lessons = ((day?['lessons'] as List<dynamic>?) ?? [])
-        .cast<Map<String, dynamic>>();
+    final days = _visibleDays(
+      ((week?['days'] as List<dynamic>?) ?? [])
+          .map((day) => Map<String, dynamic>.from(day as Map))
+          .toList(),
+    );
+    Map<String, dynamic>? selectedDay;
+    for (final day in days) {
+      if (day['date'] == selectedDate) {
+        selectedDay = day;
+        break;
+      }
+    }
+    final lessons = ((selectedDay?['lessons'] as List<dynamic>?) ?? [])
+        .map((lesson) => Map<String, dynamic>.from(lesson as Map))
+        .toList();
 
     return Scaffold(
+      appBar: AppBar(
+        title: Text('Viikko ${_weekNumber()}'),
+        actions: [
+          IconButton(
+            tooltip: 'Edellinen viikko',
+            onPressed: () => shiftWeek(-7),
+            icon: const Icon(Icons.chevron_left_rounded),
+          ),
+          IconButton(
+            tooltip: 'Seuraava viikko',
+            onPressed: () => shiftWeek(7),
+            icon: const Icon(Icons.chevron_right_rounded),
+          ),
+        ],
+      ),
       body: RefreshIndicator(
         onRefresh: load,
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 64, 20, 24),
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
           children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Viikko',
-                    style:
-                        t.headlineMedium?.copyWith(fontWeight: FontWeight.w700),
-                  ),
-                ),
-                IconButton.filledTonal(
-                    onPressed: () => shift(-7),
-                    icon: const Icon(Icons.chevron_left)),
-                IconButton.filledTonal(
-                    onPressed: () => shift(7),
-                    icon: const Icon(Icons.chevron_right)),
-              ],
-            ),
-            const SizedBox(height: 16),
             if (loading)
               const Padding(
-                  padding: EdgeInsets.all(48),
-                  child: Center(child: CircularProgressIndicator()))
-            else if (error != null)
-              Card(child: Padding(padding: const EdgeInsets.all(20), child: Text(error!)))
+                padding: EdgeInsets.all(44),
+                child: Center(child: CircularProgressIndicator()),
+              )
+            else if (failed)
+              RetryState(
+                message: 'Lukujärjestyksen lataaminen epäonnistui.',
+                onRetry: load,
+              )
             else ...[
-              SegmentedButton<int>(
-                segments: [
-                  for (var i = 0; i < days.length; i++)
-                    ButtonSegment(
-                      value: i,
-                      label: Text(
-                          _weekdays[((days[i]['weekday'] as int? ?? 1) - 1)
-                              .clamp(0, 6)]),
-                    ),
-                ],
-                selected: {selected},
-                onSelectionChanged: (s) => setState(() => selected = s.first),
-              ),
+              _dayPicker(days),
+              const SizedBox(height: 20),
+              if (selectedDay != null)
+                Text(
+                  fiDate(DateTime.parse(valueOf(selectedDay['date']))),
+                  style: Theme.of(context).textTheme.titleMedium
+                      ?.copyWith(fontWeight: FontWeight.w700),
+                ),
               const SizedBox(height: 8),
-              if (day != null)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  child: Text(
-                      '${_weekdays[((day['weekday'] as int? ?? 1) - 1).clamp(0, 6)]} ${day['date'] ?? ''}',
-                      style: t.titleSmall),
-                ),
               if (lessons.isEmpty)
-                Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Text('Ei tunteja',
-                      style: t.bodyMedium?.copyWith(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .onSurfaceVariant)),
-                ),
-              for (final l in lessons)
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: Container(
-                    width: 10,
-                    height: 10,
-                    margin: const EdgeInsets.only(left: 8),
-                    decoration: BoxDecoration(
-                        color: lessonColor(l), shape: BoxShape.circle),
-                  ),
-                  title: Text(l['subject'] ?? '',
-                      style: const TextStyle(fontWeight: FontWeight.w600)),
-                  subtitle: Text([
-                    if (l['room'] != null && l['room'] != '') l['room'],
-                    if (teacherNames(l).isNotEmpty) teacherNames(l),
-                  ].join(' · ')),
-                  trailing: Text('${l['start']}–${l['end']}',
-                      style: t.bodySmall?.copyWith(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .onSurfaceVariant)),
-                ),
+                const EmptyState('Ei tunteja')
+              else
+                for (final lesson in lessons) _lessonRow(lesson),
             ],
           ],
         ),
       ),
     );
+  }
+
+  Widget _dayPicker(List<Map<String, dynamic>> days) {
+    if (days.isEmpty) return const EmptyState('Ei lukujärjestystä');
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          for (final day in days) ...[
+            if (day != days.first) const SizedBox(width: 8),
+            _dayChip(day),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _dayChip(Map<String, dynamic> day) {
+    final date = valueOf(day['date']);
+    final weekday = (day['weekday'] as int? ?? 1).clamp(1, 7);
+    final dayNumber = date.length >= 10 ? date.substring(8, 10) : '';
+    final selected = date == selectedDate;
+    return ChoiceChip(
+      selected: selected,
+      onSelected: (_) => setState(() => selectedDate = date),
+      label: SizedBox(
+        width: 38,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(weekDays[weekday - 1]),
+            Text(
+              dayNumber,
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+          ],
+        ),
+      ),
+      labelStyle: TextStyle(
+        color: selected ? KouluColors.accent : KouluColors.secondary,
+      ),
+      selectedColor: KouluColors.navigationIndicator,
+      backgroundColor: KouluColors.card,
+      side: const BorderSide(color: KouluColors.border),
+      showCheckmark: false,
+      padding: const EdgeInsets.symmetric(vertical: 6),
+    );
+  }
+
+  Widget _lessonRow(Map<String, dynamic> lesson) {
+    final isBreak = lesson['break'] == true;
+    final details = [
+      valueOf(lesson['room']),
+      teacherNames(lesson),
+    ].where((part) => part.isNotEmpty).join(' · ');
+    return Opacity(
+      opacity: isBreak ? 0.55 : 1,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 5),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            SizedBox(
+              width: 48,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    valueOf(lesson['start']),
+                    style: Theme.of(context).textTheme.labelMedium,
+                  ),
+                  Text(
+                    valueOf(lesson['end']),
+                    style: Theme.of(context).textTheme.labelSmall
+                        ?.copyWith(color: KouluColors.secondary),
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              width: 3,
+              height: 42,
+              margin: const EdgeInsets.only(right: 12),
+              decoration: BoxDecoration(
+                color: isBreak ? KouluColors.secondary : lessonColor(lesson),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    valueOf(lesson['subject']),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style:
+                        (isBreak
+                                ? Theme.of(context).textTheme.bodySmall
+                                : Theme.of(context).textTheme.bodyMedium)
+                            ?.copyWith(fontWeight: FontWeight.w700),
+                  ),
+                  if (details.isNotEmpty)
+                    Text(
+                      details,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall
+                          ?.copyWith(color: KouluColors.secondary),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  List<Map<String, dynamic>> _visibleDays(List<Map<String, dynamic>> days) =>
+      days.where((day) {
+        final weekday = day['weekday'] as int? ?? 1;
+        final lessons = (day['lessons'] as List<dynamic>?) ?? [];
+        return weekday <= 5 || lessons.isNotEmpty;
+      }).toList();
+
+  int _weekNumber() {
+    final weekStart = DateTime.tryParse(valueOf(week?['week_start']));
+    if (weekStart == null) return 1;
+    final thursday = weekStart.add(const Duration(days: 3));
+    final januaryFourth = DateTime(thursday.year, 1, 4);
+    final firstMonday = januaryFourth.subtract(
+      Duration(days: januaryFourth.weekday - 1),
+    );
+    return thursday.difference(firstMonday).inDays ~/ 7 + 1;
   }
 }

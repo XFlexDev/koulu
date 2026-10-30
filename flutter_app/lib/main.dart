@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+
 import 'api.dart';
+import 'ui.dart';
+import 'screens/announcements.dart';
 import 'screens/login.dart';
 import 'screens/today.dart';
 import 'screens/week.dart';
@@ -15,25 +18,10 @@ class KouluApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = ColorScheme.fromSeed(
-      seedColor: const Color(0xFF4ADE80),
-      brightness: Brightness.dark,
-    ).copyWith(
-      surface: Colors.black,
-      surfaceContainerHighest: const Color(0xFF101812),
-      surfaceContainerHigh: const Color(0xFF0C130E),
-      primary: const Color(0xFF4ADE80),
-      secondaryContainer: const Color(0xFF14241A),
-    );
     return MaterialApp(
       title: 'koulu',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        colorScheme: scheme,
-        scaffoldBackgroundColor: Colors.black,
-        appBarTheme: const AppBarTheme(backgroundColor: Colors.black),
-      ),
+      theme: kouluTheme(),
       home: const Gate(),
     );
   }
@@ -79,9 +67,10 @@ class _HomeState extends State<Home> {
   @override
   Widget build(BuildContext context) {
     final pages = [
-      const TodayScreen(),
-      const WeekScreen(),
+      HomeScreen(onNavigate: (i) => setState(() => index = i)),
       const MessagesScreen(),
+      const NewsScreen(),
+      const WeekScreen(),
       MoreScreen(onLogout: widget.onLogout),
     ];
     return Scaffold(
@@ -90,10 +79,31 @@ class _HomeState extends State<Home> {
         selectedIndex: index,
         onDestinationSelected: (i) => setState(() => index = i),
         destinations: const [
-          NavigationDestination(icon: Icon(Icons.today_outlined), selectedIcon: Icon(Icons.today), label: 'Tänään'),
-          NavigationDestination(icon: Icon(Icons.calendar_view_week_outlined), selectedIcon: Icon(Icons.calendar_view_week), label: 'Viikko'),
-          NavigationDestination(icon: Icon(Icons.mail_outline), selectedIcon: Icon(Icons.mail), label: 'Viestit'),
-          NavigationDestination(icon: Icon(Icons.more_horiz), selectedIcon: Icon(Icons.more_horiz), label: 'Lisää'),
+          NavigationDestination(
+            icon: Icon(Icons.home_outlined),
+            selectedIcon: Icon(Icons.home_rounded),
+            label: 'Koti',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.mail_outline_rounded),
+            selectedIcon: Icon(Icons.mail_rounded),
+            label: 'Viestit',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.campaign_outlined),
+            selectedIcon: Icon(Icons.campaign_rounded),
+            label: 'Tiedotteet',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.calendar_month_outlined),
+            selectedIcon: Icon(Icons.calendar_month_rounded),
+            label: 'Lukkari',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.more_horiz_rounded),
+            selectedIcon: Icon(Icons.more_horiz_rounded),
+            label: 'Lisää',
+          ),
         ],
       ),
     );

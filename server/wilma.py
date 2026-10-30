@@ -438,6 +438,12 @@ class WilmaClient:
             "allow_reply": allow_reply,
         }
 
+    async def get_photo(self) -> httpx.Response:
+        r = await self._request("GET", "/photo")
+        if r.status_code != 200:
+            raise WilmaAPIError(f"Photo unavailable (HTTP {r.status_code})")
+        return r
+
     async def get_recipients(self) -> list[dict]:
         r = await self._request("GET", "/messages/recipients")
         soup = self._soup(r.text)

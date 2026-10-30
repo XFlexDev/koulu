@@ -1,8 +1,10 @@
 import 'dart:convert';
+
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 const base = 'https://koulu.kreatix.dev/api';
+const photoUrl = '$base/photo';
 const _tokenKey = 'koulu:token';
 
 String? _token;
@@ -20,6 +22,11 @@ Future<void> _setToken(String? t) async {
   } else {
     await p.setString(_tokenKey, t);
   }
+}
+
+Map<String, String> apiAuthHeaders() {
+  final token = _token;
+  return token == null ? {} : {'authorization': 'Bearer $token'};
 }
 
 class ApiException implements Exception {
@@ -60,8 +67,11 @@ Future<dynamic> _req(String method, String path, {dynamic body}) async {
 }
 
 Future<void> login(String url, String user, String pass) async {
-  final res = await _req('POST', '/session',
-      body: {'url': url, 'username': user, 'password': pass});
+  final res = await _req(
+    'POST',
+    '/session',
+    body: {'url': url, 'username': user, 'password': pass},
+  );
   await _setToken(res['token']);
 }
 
@@ -81,9 +91,11 @@ Future<Map<String, dynamic>> schedule(String date) async =>
 
 /// folders: inbox, sent, archive, drafts, all → {messages:[{id,subject,from,timestamp,unread,folder,replies}]}
 Future<List<dynamic>> messages(String folder) async =>
-    Map<String, dynamic>.from(await _req('GET', '/messages?folder=$folder'))[
-            'messages'] as List<dynamic>? ??
-        [];
+    Map<String, dynamic>.from(
+          await _req('GET', '/messages?folder=$folder'),
+        )['messages']
+        as List<dynamic>? ??
+    [];
 
 /// {id,subject,from,timestamp,recipients,html,replies,allow_reply}
 Future<Map<String, dynamic>> message(int id) async =>
@@ -92,34 +104,43 @@ Future<Map<String, dynamic>> message(int id) async =>
 Future<void> reply(int id, String body) async =>
     _req('POST', '/messages/$id/reply', body: {'body': body});
 
-Future<void> send(List<Map<String, dynamic>> recipients, String subject,
-        String body) async =>
-    _req('POST', '/messages',
-        body: {'recipients': recipients, 'subject': subject, 'body': body});
+Future<void> send(
+  List<Map<String, dynamic>> recipients,
+  String subject,
+  String body,
+) async => _req(
+  'POST',
+  '/messages',
+  body: {'recipients': recipients, 'subject': subject, 'body': body},
+);
 
 /// {recipients:[{id,name,type,n_class}]}
 Future<List<dynamic>> recipients() async =>
     Map<String, dynamic>.from(await _req('GET', '/recipients'))['recipients']
-            as List<dynamic>? ??
-        [];
+        as List<dynamic>? ??
+    [];
 
 /// {exams:[{date,time,name,course,teacher,info}]}
 Future<List<dynamic>> exams() async =>
     Map<String, dynamic>.from(await _req('GET', '/exams'))['exams']
-            as List<dynamic>? ??
-        [];
+        as List<dynamic>? ??
+    [];
 
 /// {news:[{id,title,date,description,author,sticky,important}]}
 Future<List<dynamic>> news() async =>
     Map<String, dynamic>.from(await _req('GET', '/news'))['news']
-            as List<dynamic>? ??
-        [];
+        as List<dynamic>? ??
+    [];
+
+/// {id,title,body}
+Future<Map<String, dynamic>> newsItem(int id) async =>
+    Map<String, dynamic>.from(await _req('GET', '/news/$id'));
 
 /// {assessments:[{id,start,end,...}]}
 Future<List<dynamic>> assessments() async =>
     Map<String, dynamic>.from(await _req('GET', '/assessments'))['assessments']
-            as List<dynamic>? ??
-        [];
+        as List<dynamic>? ??
+    [];
 
 /// {observations:[{id,timestamp,type,description}],allow_excuse,excuses}
 Future<Map<String, dynamic>> attendance() async =>

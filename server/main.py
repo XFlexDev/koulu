@@ -6,7 +6,7 @@ from datetime import datetime
 
 from typing import Optional
 
-from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -100,6 +100,19 @@ async def me(c: WilmaClient = Depends(client_for)):
     }
 
 
+@app.get("/api/photo")
+async def photo(c: WilmaClient = Depends(client_for)):
+    try:
+        upstream = await c.get_photo()
+    except WilmaAPIError as e:
+        raise HTTPException(502, "photo unavailable") from e
+    return Response(
+        content=upstream.content,
+        media_type=upstream.headers.get("content-type", "image/jpeg"),
+        headers={"Cache-Control": "private, max-age=3600"},
+    )
+
+
 @app.get("/api/schedule")
 async def schedule(date: Optional[str] = None, c: WilmaClient = Depends(client_for)):
     target = datetime.strptime(date, "%Y-%m-%d").date() if date else None
@@ -161,6 +174,14 @@ async def exams(c: WilmaClient = Depends(client_for)):
 async def news(c: WilmaClient = Depends(client_for)):
     try:
         return {"news": await c.get_news()}
+    except WilmaAPIError as e:
+        raise HTTPException(502, str(e))
+
+
+@app.get("/api/news/{nid}")
+async def news_item(nid: int, c: WilmaClient = Depends(client_for)):
+    try:
+        return await c.get_news_item(nid)
     except WilmaAPIError as e:
         raise HTTPException(502, str(e))
 

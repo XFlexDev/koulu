@@ -1,43 +1,56 @@
 import 'package:flutter/material.dart';
+
 import '../api.dart';
+import '../ui.dart';
 
 class MoreScreen extends StatefulWidget {
   final VoidCallback onLogout;
+
   const MoreScreen({super.key, required this.onLogout});
+
   @override
   State<MoreScreen> createState() => _MoreScreenState();
 }
 
 class _MoreScreenState extends State<MoreScreen> {
-  Map<String, dynamic>? user;
   List<dynamic> examList = [];
-  List<dynamic> newsList = [];
-  List<dynamic> assessList = [];
-  List<dynamic> obsList = [];
+  List<dynamic> assessmentList = [];
+  List<dynamic> observations = [];
   bool loading = true;
+  bool failed = false;
+  bool loggingOut = false;
 
   Future<void> load() async {
-    setState(() => loading = true);
+    setState(() {
+      loading = true;
+      failed = false;
+    });
     try {
-      final results = await Future.wait([
-        me().catchError((_) => <String, dynamic>{}),
-        exams().catchError((_) => []),
-        news().catchError((_) => []),
-        assessments().catchError((_) => []),
-        attendance().catchError((_) => <String, dynamic>{}),
+      final results = await Future.wait<dynamic>([
+        exams(),
+        assessments(),
+        attendance(),
       ]);
+      if (!mounted) return;
       setState(() {
-        user = results[0] as Map<String, dynamic>;
-        examList = results[1] as List<dynamic>;
-        newsList = results[2] as List<dynamic>;
-        assessList = results[3] as List<dynamic>;
-        obsList = ((results[4] as Map<String, dynamic>)['observations']
+        examList = results[0] as List<dynamic>;
+        assessmentList = results[1] as List<dynamic>;
+        observations =
+            ((results[2] as Map<String, dynamic>)['observations']
                 as List<dynamic>?) ??
             [];
       });
+    } catch (_) {
+      if (mounted) setState(() => failed = true);
     } finally {
       if (mounted) setState(() => loading = false);
     }
+  }
+
+  Future<void> _logout() async {
+    setState(() => loggingOut = true);
+    await logout();
+    if (mounted) widget.onLogout();
   }
 
   @override
@@ -46,117 +59,225 @@ class _MoreScreenState extends State<MoreScreen> {
     load();
   }
 
-  Widget section(String title, List<Widget> items) {
-    final t = Theme.of(context).textTheme;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(top: 20, bottom: 4),
-          child: Text(title.toUpperCase(),
-              style: t.labelSmall?.copyWith(
-                  letterSpacing: 1.5,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  fontWeight: FontWeight.w700)),
-        ),
-        if (items.isEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: Text('Ei mitään',
-                style: t.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant)),
-          )
-        else
-          ...items,
-      ],
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    final t = Theme.of(context).textTheme;
-    final account = (user?['account'] as Map?) ?? {};
-    final name = [
-      account['firstname'],
-      account['lastname'],
-    ].where((x) => x != null && x != '').join(' ');
     return Scaffold(
+      appBar: AppBar(title: const Text('Lisää')),
       body: RefreshIndicator(
         onRefresh: load,
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 64, 20, 24),
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
           children: [
-            Text(name.isEmpty ? 'Lisää' : name,
-                style:
-                    t.headlineMedium?.copyWith(fontWeight: FontWeight.w700)),
             if (loading)
               const Padding(
-                  padding: EdgeInsets.all(48),
-                  child: Center(child: CircularProgressIndicator()))
+                padding: EdgeInsets.all(44),
+                child: Center(child: CircularProgressIndicator()),
+              )
+            else if (failed)
+              RetryState(
+                message: 'Tietojen lataaminen epäonnistui.',
+                onRetry: load,
+              )
             else ...[
-              section('Kokeet', [
-                for (final e in examList.cast<Map<String, dynamic>>())
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(e['name'] ?? e['course'] ?? '',
-                        style: const TextStyle(fontWeight: FontWeight.w600)),
-                    subtitle: Text(
-                        [e['date'], e['info']]
-                            .where((x) => x != null && x != '')
-                            .join('  ·  ')),
-                  ),
-              ]),
-              section('Arviointikeskustelut', [
-                for (final a in assessList.cast<Map<String, dynamic>>())
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(a['name'] ?? a['course'] ?? ''),
-                    subtitle: Text(
-                        [a['start'], a['end'], a['teacher']]
-                            .where((x) => x != null && x != '')
-                            .join('  ·  ')),
-                  ),
-              ]),
-              section('Poissaolot', [
-                for (final o in obsList.cast<Map<String, dynamic>>())
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(o['timestamp'] ?? ''),
-                    subtitle: Text(
-                        [o['type'], o['description']]
-                            .where((x) => x != null && x != '')
-                            .join('  ·  ')),
-                  ),
-              ]),
-              section('Tiedotteet', [
-                for (final n in newsList.cast<Map<String, dynamic>>())
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(n['title'] ?? '',
-                        style: const TextStyle(fontWeight: FontWeight.w600)),
-                    subtitle: Text(n['date'] ?? ''),
-                    trailing: (n['sticky'] == true || n['important'] == true)
-                        ? const Chip(
-                            label: Text('Tärkeä'),
-                            visualDensity: VisualDensity.compact)
-                        : null,
-                  ),
-              ]),
-              const SizedBox(height: 32),
-              FilledButton.tonal(
-                onPressed: () async {
-                  await logout();
-                  widget.onLogout();
-                },
-                style: FilledButton.styleFrom(
-                    foregroundColor:
-                        Theme.of(context).colorScheme.error,
-                    minimumSize: const Size.fromHeight(48)),
-                child: const Text('Kirjaudu ulos'),
+              _section(
+                'Kokeet',
+                examList,
+                'Ei tulevia kokeita',
+                (exam) => _examCard(context, exam),
+              ),
+              _section(
+                'Arviointikeskustelut',
+                assessmentList,
+                'Ei arviointikeskusteluja',
+                _assessmentCard,
+              ),
+              _section(
+                'Poissaolot',
+                observations,
+                'Ei poissaolomerkintöjä',
+                _observationCard,
+              ),
+              const SizedBox(height: 26),
+              OutlinedButton.icon(
+                onPressed: loggingOut ? null : _logout,
+                icon: loggingOut
+                    ? const SizedBox.square(
+                        dimension: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.logout_rounded),
+                label: const Text('Kirjaudu ulos'),
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(50),
+                  foregroundColor: KouluColors.text,
+                  side: const BorderSide(color: KouluColors.border),
+                ),
               ),
             ],
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _section(
+    String title,
+    List<dynamic> items,
+    String emptyText,
+    Widget Function(Map<String, dynamic>) buildCard,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SectionHeading(title),
+        if (items.isEmpty)
+          EmptyState(emptyText)
+        else
+          for (final item in items.cast<Map<String, dynamic>>())
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: buildCard(item),
+            ),
+      ],
+    );
+  }
+
+  Widget _examCard(BuildContext context, Map<String, dynamic> exam) {
+    final title = valueOf(exam['name']).isEmpty
+        ? valueOf(exam['course'])
+        : valueOf(exam['name']);
+    final details = [
+      valueOf(exam['course']),
+      valueOf(exam['time']),
+      valueOf(exam['teacher']),
+      valueOf(exam['info']),
+    ].where((part) => part.isNotEmpty).join(' · ');
+    return KouluCard(
+      onTap: () => Navigator.push<void>(
+        context,
+        MaterialPageRoute(builder: (_) => ExamPage(exam: exam)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: Theme.of(context).textTheme.titleSmall
+                ?.copyWith(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 5),
+          Text(
+            [
+              cardDate(exam['date']),
+              details,
+            ].where((part) => part.isNotEmpty).join(' · '),
+            style: Theme.of(context).textTheme.bodySmall
+                ?.copyWith(color: KouluColors.secondary),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _assessmentCard(Map<String, dynamic> assessment) => KouluCard(
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          valueOf(assessment['name']).isEmpty
+              ? 'Arviointikeskustelu'
+              : valueOf(assessment['name']),
+          style: Theme.of(context).textTheme.titleSmall
+              ?.copyWith(fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(height: 5),
+        Text(
+          [
+            valueOf(assessment['start']),
+            valueOf(assessment['end']),
+            valueOf(assessment['teacher']),
+          ].where((part) => part.isNotEmpty).join(' · '),
+          style: Theme.of(context).textTheme.bodySmall
+              ?.copyWith(color: KouluColors.secondary),
+        ),
+      ],
+    ),
+  );
+
+  Widget _observationCard(Map<String, dynamic> observation) => KouluCard(
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          valueOf(observation['timestamp']),
+          style: Theme.of(context).textTheme.titleSmall
+              ?.copyWith(fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(height: 5),
+        Text(
+          [
+            valueOf(observation['type']),
+            valueOf(observation['description']),
+          ].where((part) => part.isNotEmpty).join(' · '),
+          style: Theme.of(context).textTheme.bodySmall
+              ?.copyWith(color: KouluColors.secondary),
+        ),
+      ],
+    ),
+  );
+}
+
+class ExamPage extends StatelessWidget {
+  final Map<String, dynamic> exam;
+
+  const ExamPage({super.key, required this.exam});
+
+  @override
+  Widget build(BuildContext context) {
+    final details = <(String, String)>[
+      ('Päivä', cardDate(exam['date'])),
+      ('Aika', valueOf(exam['time'])),
+      ('Kurssi', valueOf(exam['course'])),
+      ('Opettaja', valueOf(exam['teacher'])),
+      ('Lisätiedot', valueOf(exam['info'])),
+    ].where((entry) => entry.$2.isNotEmpty).toList();
+    return Scaffold(
+      appBar: AppBar(title: const Text('Koe')),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(20, 10, 20, 28),
+        children: [
+          Text(
+            valueOf(exam['name']).isEmpty
+                ? valueOf(exam['course'])
+                : valueOf(exam['name']),
+            style: Theme.of(context).textTheme.headlineSmall
+                ?.copyWith(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 18),
+          KouluCard(
+            child: Column(
+              children: [
+                for (var i = 0; i < details.length; i++) ...[
+                  if (i > 0) const Divider(height: 20),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SizedBox(
+                        width: 92,
+                        child: Text(
+                          details[i].$1,
+                          style: const TextStyle(color: KouluColors.secondary),
+                        ),
+                      ),
+                      Expanded(child: Text(details[i].$2)),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
